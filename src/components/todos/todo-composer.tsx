@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { format, startOfDay } from "date-fns";
 
 import * as FancyButton from "@/components/ui/fancy-button";
@@ -55,7 +54,6 @@ export default function TodoComposer({
   onCreated,
   className,
 }: TodoComposerProps) {
-  const router = useRouter();
   const [isExpanded, setIsExpanded] = React.useState(false);
   const [title, setTitle] = React.useState("");
   const [description, setDescription] = React.useState("");
@@ -66,6 +64,10 @@ export default function TodoComposer({
   const [state, formAction, isPending] = React.useActionState(
     createTodoComposerAction,
     INITIAL_STATE,
+  );
+
+  const lastStatusRef = React.useRef<ComposerActionState["status"]>(
+    INITIAL_STATE.status,
   );
 
   const titleId = React.useId();
@@ -86,16 +88,21 @@ export default function TodoComposer({
   }, []);
 
   React.useEffect(() => {
+    if (state.status === lastStatusRef.current) {
+      return;
+    }
+
+    lastStatusRef.current = state.status;
+
     if (state.status === "success" && state.todo) {
       resetForm();
       setIsExpanded(false);
       toast.success(state.message ?? "Task created successfully.");
-      router.refresh();
       onCreated?.(state.todo);
     } else if (state.status === "error" && state.message) {
       toast.error(state.message);
     }
-  }, [state, onCreated, router, resetForm]);
+  }, [onCreated, resetForm, state.message, state.status, state.todo]);
 
   const canSubmit = title.trim().length > 0 && !isPending;
 
