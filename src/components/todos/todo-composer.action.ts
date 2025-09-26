@@ -1,5 +1,7 @@
 'use server';
 
+import { revalidatePath } from 'next/cache';
+
 import {
   isValidPriority,
   type ComposerActionState,
@@ -58,6 +60,8 @@ export async function createTodoComposerAction(
       dueDate,
       isCompleted: false,
     });
+
+    revalidatePath('/');
 
     return {
       status: 'success',
