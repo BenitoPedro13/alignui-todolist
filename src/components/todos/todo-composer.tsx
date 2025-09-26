@@ -198,7 +198,7 @@ export default function TodoComposer({
                 disabled={isPending}
               >
                 <span>{formatDueDateLabel(dueDate)}</span>
-                <span className="text-label-xs text-text-soft-400">Pick</span>
+                {/* <span className="text-label-xs text-text-soft-400">Pick</span> */}
               </button>
             </Popover.Trigger>
             <Popover.Content className="p-0" side="bottom" align="start">
