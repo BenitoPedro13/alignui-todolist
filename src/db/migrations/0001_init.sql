@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS todos (
+    id INTEGER PRIMARY KEY,
+    title TEXT NOT NULL, 
+    description TEXT, 
+    is_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    priority INTEGER DEFAULT 0,
+    due_date TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
