@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import { Inter as FontSans } from 'next/font/google';
+import { Inter as FontSans } from "next/font/google";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { NotificationProvider } from "@/components/ui/notification-provider";
+import { Toaster } from "@/components/ui/toast";
 
 const inter = FontSans({
-  subsets: ['latin'],
-  variable: '--font-sans',
+  subsets: ["latin"],
+  variable: "--font-sans",
 });
 
 const geistSans = Geist({
@@ -34,6 +36,8 @@ export default function RootLayout({
         className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} antialiased dark`}
       >
         {children}
+        <NotificationProvider />
+        <Toaster />
       </body>
     </html>
   );
