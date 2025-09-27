@@ -416,7 +416,7 @@ const columns: ColumnDef<Data>[] = [
   {
     id: 'actions',
     enableHiding: false,
-    cell: ({ row }) => (
+    cell: ({ row: _row }) => (
       <Button.Root variant='neutral' mode='ghost' size='xsmall'>
         <Button.Icon as={RiMore2Line} />
       </Button.Root>

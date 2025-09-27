@@ -68,7 +68,10 @@ const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 
 if (invokedPath === modulePath) {
   const db = initializeDatabase();
-  const { file } = db.pragma('database_list')[0] ?? { file: 'unknown' };
+  const databaseList = db.pragma('database_list');
+  const file = Array.isArray(databaseList) && databaseList[0]
+    ? (databaseList[0] as { file?: string }).file ?? 'unknown'
+    : 'unknown';
   process.stdout.write(`Database initialized at ${file}\n`);
   db.close();
 }

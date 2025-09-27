@@ -11,7 +11,7 @@ type NotificationPropsWithId = NotificationProps & {
   id: string;
 };
 
-const actionTypes = {
+const _actionTypes = {
   ADD_NOTIFICATION: 'ADD_NOTIFICATION',
   UPDATE_NOTIFICATION: 'UPDATE_NOTIFICATION',
   DISMISS_NOTIFICATION: 'DISMISS_NOTIFICATION',
@@ -25,7 +25,7 @@ function genId() {
   return count.toString();
 }
 
-type ActionType = typeof actionTypes;
+type ActionType = typeof _actionTypes;
 
 type Action =
   | {

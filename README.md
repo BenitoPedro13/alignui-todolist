@@ -9,6 +9,13 @@ Projetinho Todo List is a learning-focused to-do application built with Next.js 
 - Tailwind CSS v4 utility classes
 - SQLite for zero-maintenance persistence during development
 
+## Key Features
+- **Guided task composer** – toggleable form with validation, due-date picker, description counter, and toast feedback.
+- **Progress overview** – summary panel (`TodoSummary`) combines divider, progress circle, status badges, and progress bar to highlight active/completed/overdue counts and completion percentage.
+- **Smart list with filters** – segmented control filters (All / Active / Completed / Overdue), search-as-you-type, and timezone-aware timestamps keep the list relevant.
+- **Bulk actions** – multi-select mode powered by checkbox group + button group enables bulk complete/delete with toast alerts and a responsive floating toolbar.
+- **Polished pagination** – AlignUI pagination component provides first/prev/next/last controls and integrates with the page-size selector on desktop and mobile.
+
 ## Prerequisites
 - Node.js 20.0.0 or newer (Next.js 15 requirement)
 - pnpm 9.x (`corepack enable` if pnpm is not already available)
@@ -51,6 +58,7 @@ When adding new screens, compose from existing primitives before introducing bes
 src/
  ├─ app/              # App Router routes and layout
  ├─ components/       # AlignUI-based reusable components
+ │   └─ todos/        # Feature-level composer, list client, summary, actions, panel
  ├─ hooks/            # Shared hooks (tab observer, notifications, etc.)
  └─ lib/              # Helpers and utilities (to be populated)
 ```
