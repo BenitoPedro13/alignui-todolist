@@ -11,6 +11,8 @@ import {
   RiDeleteBinLine,
   RiArrowLeftSLine,
   RiArrowRightSLine,
+  RiArrowLeftDoubleLine,
+  RiArrowRightDoubleLine,
 } from "@remixicon/react";
 import { format, isPast, isToday, parseISO, startOfDay } from "date-fns";
 
@@ -30,6 +32,7 @@ import * as SegmentedControl from "@/components/ui/segmented-control";
 import * as Select from "@/components/ui/select";
 import * as Textarea from "@/components/ui/textarea";
 import * as ToastAlert from "@/components/ui/toast-alert";
+import * as Pagination from "@/components/ui/pagination";
 import { Calendar } from "@/components/ui/datepicker";
 import { cn } from "@/utils/cn";
 import { toast } from "@/components/ui/toast";
@@ -418,6 +421,34 @@ export function TodoListClient({
 
   const selectedCount = selectedIds.size;
 
+  const paginationItems = React.useMemo(() => {
+    const total = totalPages;
+    const current = currentPage;
+
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, index) => index + 1);
+    }
+
+    const items: (number | string)[] = [1];
+    const left = Math.max(2, current - 1);
+    const right = Math.min(total - 1, current + 1);
+
+    if (left > 2) {
+      items.push('ellipsis-left');
+    }
+
+    for (let page = left; page <= right; page += 1) {
+      items.push(page);
+    }
+
+    if (right < total - 1) {
+      items.push('ellipsis-right');
+    }
+
+    items.push(total);
+    return items;
+  }, [currentPage, totalPages]);
+
   React.useEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set());
@@ -662,13 +693,13 @@ export function TodoListClient({
             <li
               key={todo.id}
               className={cn(
-                "group rounded-2xl border border-stroke-soft-200/70 bg-bg-white-0/[0.04] p-5 shadow-regular-md transition duration-200 hover:shadow-regular-lg",
+                "group rounded-2xl border border-stroke-soft-200/70 bg-bg-white-0/[0.04] p-4 shadow-regular-md transition duration-200 hover:shadow-regular-lg sm:p-5",
                 isOverdue && "border-error-base/60 bg-error-base/5",
                 isUpdating && "opacity-70",
                 isSelectionMode && isSelected && "ring-2 ring-primary-base/70"
               )}
             >
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="flex flex-1 items-start gap-3">
                   <Checkbox.Root
                     checked={
@@ -719,8 +750,8 @@ export function TodoListClient({
                     ) : null}
                   </div>
                 </div>
-                <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
-                  <div className="flex w-full items-center justify-between gap-2 md:w-auto md:justify-end">
+                <div className="flex shrink-0 flex-col items-start gap-2 lg:items-end">
+                  <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
                     <Badge.Root
                       variant="light"
                       color={statusBadgeColor}
@@ -801,9 +832,9 @@ export function TodoListClient({
         })}
       </ul>
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-stroke-soft-200/70 bg-bg-white-0/[0.04] p-4 shadow-regular-md sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2 text-paragraph-sm text-text-sub-600">
-          <span>Rows per page</span>
+      <div className="flex flex-col gap-6 rounded-2xl border border-stroke-soft-200/70 bg-bg-white-0/[0.04] p-4 shadow-regular-md sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between gap-4 text-paragraph-sm text-text-sub-600 sm:justify-start">
+          <span className="leading-none">Rows per page</span>
           <Select.Root
             value={String(pageSize)}
             onValueChange={(value) => {
@@ -811,7 +842,7 @@ export function TodoListClient({
             }}
             disabled={todos.length <= PAGE_SIZE_OPTIONS[0]}
           >
-            <Select.Trigger className="w-[100px]">
+            <Select.Trigger className="w-[88px] justify-between">
               <Select.Value />
             </Select.Trigger>
             <Select.Content>
@@ -823,32 +854,63 @@ export function TodoListClient({
             </Select.Content>
           </Select.Root>
         </div>
-        <div className="flex items-center justify-end gap-3 text-paragraph-sm text-text-sub-600">
-          <span>
-            Page {currentPage} of {totalPages}
-          </span>
-          <div className="flex items-center gap-2">
-            <CompactButton.Root
-              variant="stroke"
-              size="medium"
-              fullRadius
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+        <div className="flex flex-col items-center gap-3 text-paragraph-sm text-text-sub-600 sm:items-end">
+          <span className="sm:text-right">Page {currentPage} of {totalPages}</span>
+          <Pagination.Root
+            className="flex-wrap justify-center gap-1 sm:justify-end"
+            variant="basic"
+          >
+            <Pagination.NavButton
+              onClick={() => setCurrentPage(1)}
+              disabled={currentPage === 1}
+              aria-label="Go to first page"
             >
-              <CompactButton.Icon as={RiArrowLeftSLine} />
-            </CompactButton.Root>
-            <CompactButton.Root
-              variant="stroke"
-              size="medium"
-              fullRadius
-              disabled={currentPage >= totalPages}
+              <Pagination.NavIcon as={RiArrowLeftDoubleLine} />
+            </Pagination.NavButton>
+            <Pagination.NavButton
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              aria-label="Go to previous page"
+            >
+              <Pagination.NavIcon as={RiArrowLeftSLine} />
+            </Pagination.NavButton>
+            {paginationItems.map((item, index) => {
+              if (typeof item === "string") {
+                return (
+                  <Pagination.Item key={`${item}-${index}`} disabled>
+                    …
+                  </Pagination.Item>
+                );
+              }
+              const pageNumber = item;
+              return (
+                <Pagination.Item
+                  key={pageNumber}
+                  current={pageNumber === currentPage}
+                  onClick={() => setCurrentPage(pageNumber)}
+                  disabled={pageNumber === currentPage}
+                >
+                  {pageNumber}
+                </Pagination.Item>
+              );
+            })}
+            <Pagination.NavButton
               onClick={() =>
                 setCurrentPage((page) => Math.min(totalPages, page + 1))
               }
+              disabled={currentPage === totalPages}
+              aria-label="Go to next page"
             >
-              <CompactButton.Icon as={RiArrowRightSLine} />
-            </CompactButton.Root>
-          </div>
+              <Pagination.NavIcon as={RiArrowRightSLine} />
+            </Pagination.NavButton>
+            <Pagination.NavButton
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={currentPage === totalPages}
+              aria-label="Go to last page"
+            >
+              <Pagination.NavIcon as={RiArrowRightDoubleLine} />
+            </Pagination.NavButton>
+          </Pagination.Root>
         </div>
       </div>
 
