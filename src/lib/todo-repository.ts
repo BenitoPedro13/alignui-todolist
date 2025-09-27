@@ -1,3 +1,5 @@
+import type { InValue } from '@libsql/client';
+
 import { getClient } from './db';
 
 export type TodoPriority = 'low' | 'normal' | 'high';
@@ -126,7 +128,7 @@ export const createTodo = async (input: CreateTodoInput): Promise<Todo> => {
 
 export const updateTodo = async (id: number, updates: UpdateTodoInput): Promise<Todo | null> => {
   const assignments: string[] = [];
-  const args: unknown[] = [];
+  const args: InValue[] = [];
 
   if (typeof updates.title !== 'undefined') {
     const trimmedTitle = updates.title.trim();

@@ -83,7 +83,7 @@ const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 if (invokedPath === modulePath) {
   (async () => {
     const dbClient = await getClient();
-    const result = await dbClient.execute({ sql: "SELECT datetime('now') AS now" });
+    const result = await dbClient.execute("SELECT datetime('now') AS now");
     const now = result.rows[0]?.now ?? 'unknown';
     process.stdout.write(`Connected to Turso database at ${TURSO_DATABASE_URL}\n`);
     process.stdout.write(`Server time: ${now}\n`);
