@@ -100,8 +100,11 @@ const normalizeDate = (value: string | null) => {
   return fallback;
 };
 
+const TIMESTAMP_WITHOUT_TZ = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/;
+
 const parseTimestamp = (value: string) => {
-  const parsed = new Date(value);
+  const normalizedValue = TIMESTAMP_WITHOUT_TZ.test(value) ? `${value}Z` : value;
+  const parsed = new Date(normalizedValue);
   if (Number.isNaN(parsed.getTime())) {
     return null;
   }
