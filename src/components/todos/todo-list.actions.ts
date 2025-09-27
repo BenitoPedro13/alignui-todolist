@@ -17,12 +17,14 @@ export async function updateTodoAction(
     description?: string;
     priority?: 'low' | 'normal' | 'high';
     dueDate?: string | null;
+    isCompleted?: boolean;
   },
 ) {
-  const normalizedUpdates = {
-    ...updates,
-    dueDate: updates.dueDate ?? null,
-  };
+  const normalizedUpdates: Parameters<typeof updateTodo>[1] = { ...updates };
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'dueDate')) {
+    normalizedUpdates.dueDate = updates.dueDate ?? null;
+  }
 
   const updated = await updateTodo(id, normalizedUpdates);
   revalidatePath('/');
