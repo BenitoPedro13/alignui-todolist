@@ -1,4 +1,4 @@
-import { getDatabase } from './db';
+import { getClient } from './db';
 
 export type TodoPriority = 'low' | 'normal' | 'high';
 
@@ -27,17 +27,6 @@ export interface UpdateTodoInput {
   isCompleted?: boolean;
   priority?: TodoPriority;
   dueDate?: string | Date | null;
-}
-
-interface TodoRow {
-  id: number;
-  title: string;
-  description: string;
-  is_completed: number;
-  priority: TodoPriority;
-  due_date: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 const PRIORITY_VALUES: TodoPriority[] = ['low', 'normal', 'high'];
@@ -78,29 +67,34 @@ const assertValidPriority = (priority: string | undefined): TodoPriority | undef
   throw new Error(`Invalid todo priority: ${priority}`);
 };
 
-const mapRowToTodo = (row: TodoRow): Todo => ({
-  id: row.id,
-  title: row.title,
-  description: row.description,
-  isCompleted: row.is_completed === 1,
-  priority: row.priority,
-  dueDate: row.due_date ?? null,
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
+const mapRowToTodo = (row: Record<string, unknown>): Todo => ({
+  id: Number(row.id),
+  title: String(row.title ?? ''),
+  description: String(row.description ?? ''),
+  isCompleted:
+    Number(row.is_completed ?? row.isCompleted ?? 0) === 1 ||
+    row.is_completed === true ||
+    row.isCompleted === true,
+  priority: (row.priority as TodoPriority) ?? 'normal',
+  dueDate: (row.due_date as string | null | undefined) ?? null,
+  createdAt: String(row.created_at ?? row.createdAt ?? ''),
+  updatedAt: String(row.updated_at ?? row.updatedAt ?? ''),
 });
 
 export const listTodos = async (): Promise<Todo[]> => {
-  const db = getDatabase();
-  const statement = db.prepare('SELECT * FROM todos ORDER BY created_at DESC');
-  const rows = statement.all() as TodoRow[];
-  return rows.map(mapRowToTodo);
+  const client = await getClient();
+  const result = await client.execute('SELECT * FROM todos ORDER BY created_at DESC');
+  return result.rows.map((row) => mapRowToTodo(row as Record<string, unknown>));
 };
 
 export const getTodoById = async (id: number): Promise<Todo | null> => {
-  const db = getDatabase();
-  const statement = db.prepare('SELECT * FROM todos WHERE id = ?');
-  const row = statement.get(id) as TodoRow | undefined;
-  return row ? mapRowToTodo(row) : null;
+  const client = await getClient();
+  const result = await client.execute({
+    sql: 'SELECT * FROM todos WHERE id = ? LIMIT 1',
+    args: [id],
+  });
+  const row = result.rows[0];
+  return row ? mapRowToTodo(row as Record<string, unknown>) : null;
 };
 
 export const createTodo = async (input: CreateTodoInput): Promise<Todo> => {
@@ -108,64 +102,62 @@ export const createTodo = async (input: CreateTodoInput): Promise<Todo> => {
     throw new Error('Cannot create a todo without a title.');
   }
 
-  const db = getDatabase();
-  const insert = db.prepare(
-    `INSERT INTO todos (title, description, is_completed, priority, due_date)
-     VALUES (@title, @description, @is_completed, @priority, @due_date)`
-  );
-
+  const client = await getClient();
   const normalizedPriority = assertValidPriority(input.priority) ?? 'normal';
-  const runResult = insert.run({
-    title: input.title.trim(),
-    description: input.description?.trim() ?? '',
-    is_completed: toBooleanFlag(input.isCompleted) ?? 0,
-    priority: normalizedPriority,
-    due_date: normalizeDueDate(input.dueDate) ?? null,
+  const result = await client.execute({
+    sql: `INSERT INTO todos (title, description, is_completed, priority, due_date)
+          VALUES (?, ?, ?, ?, ?) RETURNING *`,
+    args: [
+      input.title.trim(),
+      input.description?.trim() ?? '',
+      toBooleanFlag(input.isCompleted) ?? 0,
+      normalizedPriority,
+      normalizeDueDate(input.dueDate) ?? null,
+    ],
   });
 
-  const created = await getTodoById(Number(runResult.lastInsertRowid));
-  if (!created) {
+  const row = result.rows[0];
+  if (!row) {
     throw new Error('Failed to load todo after creation.');
   }
 
-  return created;
+  return mapRowToTodo(row as Record<string, unknown>);
 };
 
 export const updateTodo = async (id: number, updates: UpdateTodoInput): Promise<Todo | null> => {
-  const db = getDatabase();
   const assignments: string[] = [];
-  const params: Record<string, unknown> = { id };
+  const args: unknown[] = [];
 
   if (typeof updates.title !== 'undefined') {
     const trimmedTitle = updates.title.trim();
     if (!trimmedTitle) {
       throw new Error('Todo title cannot be empty.');
     }
-    assignments.push('title = @title');
-    params.title = trimmedTitle;
+    assignments.push('title = ?');
+    args.push(trimmedTitle);
   }
 
   if (typeof updates.description !== 'undefined') {
-    assignments.push('description = @description');
-    params.description = updates.description.trim();
+    assignments.push('description = ?');
+    args.push(updates.description.trim());
   }
 
   const completedFlag = toBooleanFlag(updates.isCompleted);
   if (typeof completedFlag !== 'undefined') {
-    assignments.push('is_completed = @is_completed');
-    params.is_completed = completedFlag;
+    assignments.push('is_completed = ?');
+    args.push(completedFlag);
   }
 
   const normalizedPriority = assertValidPriority(updates.priority);
   if (typeof normalizedPriority !== 'undefined') {
-    assignments.push('priority = @priority');
-    params.priority = normalizedPriority;
+    assignments.push('priority = ?');
+    args.push(normalizedPriority);
   }
 
   const normalizedDueDate = normalizeDueDate(updates.dueDate);
   if (typeof normalizedDueDate !== 'undefined') {
-    assignments.push('due_date = @due_date');
-    params.due_date = normalizedDueDate;
+    assignments.push('due_date = ?');
+    args.push(normalizedDueDate);
   }
 
   if (!assignments.length) {
@@ -174,23 +166,21 @@ export const updateTodo = async (id: number, updates: UpdateTodoInput): Promise<
 
   assignments.push('updated_at = CURRENT_TIMESTAMP');
 
-  const statement = db.prepare(
-    `UPDATE todos
-     SET ${assignments.join(', ')}
-     WHERE id = @id`
-  );
-  const result = statement.run(params);
+  const client = await getClient();
+  const result = await client.execute({
+    sql: `UPDATE todos SET ${assignments.join(', ')} WHERE id = ? RETURNING *`,
+    args: [...args, id],
+  });
 
-  if (result.changes === 0) {
-    return null;
-  }
-
-  return getTodoById(id);
+  const row = result.rows[0];
+  return row ? mapRowToTodo(row as Record<string, unknown>) : null;
 };
 
 export const deleteTodo = async (id: number): Promise<boolean> => {
-  const db = getDatabase();
-  const statement = db.prepare('DELETE FROM todos WHERE id = ?');
-  const result = statement.run(id);
-  return result.changes > 0;
+  const client = await getClient();
+  const result = await client.execute({
+    sql: 'DELETE FROM todos WHERE id = ?',
+    args: [id],
+  });
+  return (result.rowsAffected ?? 0) > 0;
 };

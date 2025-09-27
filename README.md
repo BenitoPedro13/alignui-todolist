@@ -26,11 +26,12 @@ Projetinho Todo List is a learning-focused to-do application built with Next.js 
    ```bash
    pnpm install
    ```
-2. Bootstrap the local database and `.env.local` in one step:
+2. Configure Turso connection in `.env.local`:
    ```bash
+   cp -n .env.local .env.local 2>/dev/null || touch .env.local
    pnpm run setup:db
    ```
-   The script checks for the `sqlite3` CLI, ensures `.env.local` contains `DATABASE_URL=file:./data/todos.db`, creates `data/todos.db`, and replays any SQL migrations in `src/db/migrations`.
+   The setup script ensures `.env.local` contains placeholders for `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`, then verifies the remote connection (reusing the SQL migrations under `src/db/migrations`). Update the file with your Turso database URL and auth token before continuing.
 3. Start the development server:
    ```bash
    pnpm dev
@@ -47,7 +48,7 @@ When adding new screens, compose from existing primitives before introducing bes
 ## Scripts
 | Command       | Description                            |
 | ------------- | -------------------------------------- |
-| `pnpm run setup:db` | Ensure `.env.local`, create the SQLite database, and run migrations. |
+| `pnpm run setup:db` | Ensure `.env.local` has Turso credentials and run migrations remotely. |
 | `pnpm dev`    | Start the Next.js development server.  |
 | `pnpm build`  | Create an optimized production build.  |
 | `pnpm start`  | Run the production build locally.      |

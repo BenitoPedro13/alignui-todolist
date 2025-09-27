@@ -1,27 +1,24 @@
-import DatabaseConstructor, { Database } from 'better-sqlite3';
+import { createClient, type Client } from '@libsql/client';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
-const DEFAULT_DB_URL = 'file:./data/todos.db';
-let connection: Database | null = null;
 const modulePath = fileURLToPath(import.meta.url);
 const moduleDir = path.dirname(modulePath);
 const MIGRATION_FILE = path.resolve(moduleDir, '../db/migrations/0001_init.sql');
-let cachedSchemaSql: string | null = null;
 
-const normalizeDatabasePath = (databaseUrl: string): string => {
-  const withoutScheme = databaseUrl.replace(/^sqlite:/i, '').replace(/^file:/i, '');
-  const cleaned = withoutScheme.length ? withoutScheme : './data/todos.db';
-  const absolutePath = path.isAbsolute(cleaned)
-    ? cleaned
-    : path.resolve(process.cwd(), cleaned);
-  return absolutePath;
-};
+const TURSO_DATABASE_URL =
+  process.env.TURSO_DATABASE_URL ?? process.env.benito_TURSO_DATABASE_URL;
+const TURSO_AUTH_TOKEN =
+  process.env.TURSO_AUTH_TOKEN ?? process.env.benito_TURSO_AUTH_TOKEN;
+
+let client: Client | null = null;
+let migrationsPromise: Promise<void> | null = null;
+let cachedSchemaSql: string | null | undefined;
 
 const readSchemaSql = (): string | null => {
-  if (cachedSchemaSql !== null) {
+  if (cachedSchemaSql !== undefined) {
     return cachedSchemaSql;
   }
 
@@ -35,43 +32,63 @@ const readSchemaSql = (): string | null => {
   return cachedSchemaSql;
 };
 
-const ensureSchema = (db: Database) => {
+const runMigrations = async (dbClient: Client) => {
   const schemaSql = readSchemaSql();
   if (!schemaSql) {
     return;
   }
 
-  db.exec(schemaSql);
-};
+  const statements = schemaSql
+    .split(';')
+    .map((statement) => statement.trim())
+    .filter(Boolean)
+    .map((sql) => ({ sql }));
 
-export const getDatabase = (): Database => {
-  if (connection) {
-    return connection;
+  if (statements.length === 0) {
+    return;
   }
 
-  const databaseUrl = process.env.DATABASE_URL ?? DEFAULT_DB_URL;
-  const databasePath = normalizeDatabasePath(databaseUrl);
-  fs.mkdirSync(path.dirname(databasePath), { recursive: true });
-
-  const db = new DatabaseConstructor(databasePath);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  ensureSchema(db);
-
-  connection = db;
-  return connection;
+  for (const { sql } of statements) {
+    if (sql.length === 0) {
+      continue;
+    }
+    await dbClient.execute(sql);
+  }
 };
 
-export const initializeDatabase = (): Database => getDatabase();
+export const getClient = async (): Promise<Client> => {
+  if (!TURSO_DATABASE_URL) {
+    throw new Error(
+      'Missing TURSO_DATABASE_URL environment variable. Set it in your environment or .env file.',
+    );
+  }
+
+  if (!client) {
+    client = createClient({
+      url: TURSO_DATABASE_URL,
+      authToken: TURSO_AUTH_TOKEN,
+    });
+  }
+
+  if (!migrationsPromise) {
+    migrationsPromise = runMigrations(client);
+  }
+
+  await migrationsPromise;
+  return client;
+};
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : '';
 
 if (invokedPath === modulePath) {
-  const db = initializeDatabase();
-  const databaseList = db.pragma('database_list');
-  const file = Array.isArray(databaseList) && databaseList[0]
-    ? (databaseList[0] as { file?: string }).file ?? 'unknown'
-    : 'unknown';
-  process.stdout.write(`Database initialized at ${file}\n`);
-  db.close();
+  (async () => {
+    const dbClient = await getClient();
+    const result = await dbClient.execute({ sql: "SELECT datetime('now') AS now" });
+    const now = result.rows[0]?.now ?? 'unknown';
+    process.stdout.write(`Connected to Turso database at ${TURSO_DATABASE_URL}\n`);
+    process.stdout.write(`Server time: ${now}\n`);
+  })().catch((error) => {
+    process.stderr.write(`Failed to initialize database connection: ${error.message}\n`);
+    process.exit(1);
+  });
 }
